@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision.models as models
-from net.refinenet.blocks import un_pool, ResidualConvUnit, RefineNetBlock, RefineNetBlockImprovedPooling
+from net.refinenet.blocks import un_pool, ResidualConvUnit, RefineNetBlock
 
 
 class BaseRefineNet4Cascade(nn.Module):
