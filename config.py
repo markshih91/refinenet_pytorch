@@ -19,6 +19,7 @@ class DefaultCofig(object):
     # train&test files path
     images = 'data/nyu_images'
     labels = 'data/nyu_labels40'
+    depths = 'data/nyu_depths'
     train_split = 'data/train.txt'
     test_split = 'data/test.txt'
 
@@ -31,3 +32,4 @@ class DefaultCofig(object):
     # predict files path
     predict_images = 'data/predict/images'
     predict_labels = 'data/predict/labels'
+    predict_depths = 'data/predict/depths'

@@ -13,19 +13,19 @@ import dataset
 prefix_name = '_' + time.strftime('%m%d_%H:%M:%S')
 
 # load net
-net = RefineNet4Cascade(input_shape=(3, 160, 160), num_classes=40)
+net = RefineNet4Cascade(input_shape=(3, 160, 160), pretrained=False, num_classes=40)
 if cfg.use_gpu:
     net.cuda()
 
 # data preparation
-train_data = dataset.NYUDV2Dataset(cfg.images, cfg.labels, cfg.train_split)
+train_data = dataset.NYUDV2Dataset(cfg.images, cfg.labels, cfg.depths, cfg.train_split)
 train_dataLoader = data.DataLoader(train_data, batch_size=cfg.batch_size, shuffle=True)
 
-val_data = dataset.NYUDV2Dataset(cfg.images, cfg.labels, cfg.test_split)
+val_data = dataset.NYUDV2Dataset(cfg.images, cfg.labels, cfg.depths, cfg.test_split)
 val_dataLoader = data.DataLoader(val_data, batch_size=cfg.batch_size, shuffle=True)
 
 optimizer = t.optim.Adam(net.parameters(), lr=cfg.lr)
-criterion = t.nn.CrossEntropyLoss()
+criterion = MyLoss()
 if cfg.use_gpu:
     criterion.cuda()
 
@@ -38,17 +38,18 @@ for epoch in range(cfg.epochs):
 
     epoch_start = time.time()
 
-    for i, (x, y) in enumerate(train_dataLoader):
+    for i, (x, y1, y2) in enumerate(train_dataLoader):
 
         step_start = time.time()
 
         if cfg.use_gpu:
             x = x.cuda()
-            y = y.cuda()
+            y1 = y1.cuda()
+            y2 = y2.cuda()
 
         optimizer.zero_grad()
-        y_ = net(x)
-        loss = criterion(y_, y)
+        y1_, y2_ = net(x)
+        loss = criterion(y1_, y2_, y1, y2)
 
         loss.backward()
         optimizer.step()
@@ -69,15 +70,16 @@ for epoch in range(cfg.epochs):
     total_loss = 0.0
 
     with t.no_grad():
-        for i, (x, y) in enumerate(val_dataLoader):
+        for i, (x, y1, y2) in enumerate(val_dataLoader):
 
             if cfg.use_gpu:
                 x = x.cuda()
-                y = y.cuda()
+                y1 = y1.cuda()
+                y2 = y2.cuda()
 
-            y_ = net(x)
+            y1_, y2_ = net(x)
 
-            cur_loss = criterion(y_, y).item()
+            cur_loss = criterion(y1_, y2_, y1, y2).item()
             print(cur_loss)
             total_loss = total_loss + cur_loss
 

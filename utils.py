@@ -1,6 +1,14 @@
 import numpy as np
 
 
+def make_one_hot2d(data, cls_num):
+    return (np.arange(cls_num) == data[:, :, None]).astype(np.integer).transpose(2, 0, 1)
+
+
+def depth_transfer(depth_arr, max_value):
+    return np.asarray(depth_arr * max_value, dtype=np.int8)
+
+
 def seg_transfer(seg_arr):
     return np.argmax(seg_arr, axis=0) + 1
 

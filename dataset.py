@@ -14,7 +14,7 @@ transform = T.Compose([
 
 
 class NYUDV2Dataset(data.Dataset):
-    def __init__(self, imgs_folder, labels_folder, namelist_file):
+    def __init__(self, imgs_folder, labels_folder, depths_folder, namelist_file):
         '''
         initialize the class
         :param imgs_folder (str):original images folder
@@ -28,27 +28,35 @@ class NYUDV2Dataset(data.Dataset):
 
         self.imgs = [os.path.join(imgs_folder, '{0}.jpg'.format(file.strip())) for file in namelist]
         self.labels = [os.path.join(labels_folder, '{0}.png'.format(file.strip())) for file in namelist]
+        self.depths = [os.path.join(depths_folder, '{0}.png'.format(file.strip())) for file in namelist]
 
     def __getitem__(self, index):
 
         img_path = self.imgs[index]
         label_path = self.labels[index]
+        depth_path = self.depths[index]
 
         img = Image.open(img_path)
         label = Image.open(label_path)
+        depth = Image.open(depth_path)
 
         left = rand.randint(0, 480)
         up = rand.randint(0, 320)
 
         img = img.crop((left, up, left + 160, up + 160))
         label = label.crop((left, up, left + 160, up + 160))
+        depth = depth.crop((left, up, left + 160, up + 160))
 
         img = np.asarray(img)
         label = np.asarray(label)
+        depth = np.asarray(depth)
+        depth =depth / 255
+
+        label = utils.make_one_hot2d(label, 40)
 
         img = self.transform(img)
 
-        return img, t.Tensor(label)
+        return img, t.Tensor(label), t.Tensor(depth)
 
     def __len__(self):
 
@@ -77,3 +85,23 @@ class PredictINputDataset(data.Dataset):
     def __len__(self):
 
         return len(self.imgs)
+
+
+if __name__=="__main__":
+
+    # dataSet = NYUDV2Dataset('data/nyu_images', 'data/nyu_labels40', 'data/nyu_depths', 'data/train.txt')
+    # loader = data.DataLoader(dataSet, batch_size=1)
+    #
+    # for i, (img, label, depth) in enumerate(loader):
+    #     if i > 1:
+    #         break
+    #     print(img.shape)
+    #     print(label.shape)
+    #     print(depth.shape)
+
+    dataSet = PredictINputDataset('data/predict/images')
+    loader = data.DataLoader(dataSet, batch_size=1)
+
+
+    for i, img in enumerate(loader):
+        print(img.shape)

@@ -13,10 +13,10 @@ if cfg.use_gpu:
 net.load_state_dict(t.load(cfg.test_model))
 
 # data preparation
-test_data = dataset.NYUDV2Dataset(cfg.images, cfg.labels, cfg.test_split)
+test_data = dataset.NYUDV2Dataset(cfg.images, cfg.labels, cfg.depths, cfg.test_split)
 test_dataLoader = data.DataLoader(test_data, batch_size=cfg.batch_size, shuffle=True)
 
-criterion = t.nn.CrossEntropyLoss()
+criterion = MyLoss()
 if cfg.use_gpu:
     criterion.cuda()
 
@@ -24,15 +24,16 @@ if cfg.use_gpu:
 total_loss = 0.0
 
 with t.no_grad():
-    for i, (x, y) in enumerate(test_dataLoader):
+    for i, (x, y1, y2) in enumerate(test_dataLoader):
 
         if cfg.use_gpu:
             x = x.cuda()
-            y =y.cuda()
+            y1 = y1.cuda()
+            y2 = y2.cuda()
 
-        y_ = net(x)
+        y1_, y2_ = net(x)
 
-        cur_loss = criterion(y_, y).item()
+        cur_loss = criterion(y1_, y2_, y1, y2).item()
         print(cur_loss)
         total_loss = total_loss + cur_loss
 

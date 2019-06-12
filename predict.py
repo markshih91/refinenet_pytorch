@@ -33,11 +33,17 @@ with t.no_grad():
         if cfg.use_gpu:
             x = x.cuda()
 
-        y_ = net(x)
+        y1_, y2_ = net(x)
 
-        seg = Image.fromarray(seg.astype('uint8'))
-        
-        seg.save(os.path.join(cfg.predict_labels, name[0] + '.png'))
+        seg = utils.seg_transfer(y1_[0].cpu().numpy())
+        depth = utils.depth_transfer(y2_[0][0].cpu().numpy(), 255)
+
+
+        # seg = Image.fromarray(seg.astype('uint8'))
+        # depth = Image.fromarray(depth.astype('uint8'))
+        #
+        # seg.save(os.path.join(cfg.predict_labels, name[0] + '.png'))
+        # depth.save(os.path.join(cfg.predict_depths, name[0] + '.png'))
 
         cur_end = time.time()
         print('img {0} USED: {1}ms, predict total: {2}ms'.format(i + 1, 1000 * (cur_end - cur_start),

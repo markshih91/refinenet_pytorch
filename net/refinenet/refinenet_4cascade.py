@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision.models as models
-from net.refinenet.blocks import un_pool, ResidualConvUnit, RefineNetBlock
+from net.refinenet.blocks import un_pool, ResidualConvUnit, RefineNetBlock, RefineNetBlockImprovedPooling
 
 
 class BaseRefineNet4Cascade(nn.Module):
@@ -60,15 +60,18 @@ class BaseRefineNet4Cascade(nn.Module):
                                          (features, input_h // 8, input_w // 8),
                                          (features, input_h // 4, input_w // 4))
 
-        self.output_conv = nn.Sequential(
-            ResidualConvUnit(features), ResidualConvUnit(features),
-            nn.Conv2d(
-                features,
-                num_classes,
-                kernel_size=1,
-                stride=1,
-                padding=0,
-                bias=True))
+        self.segBranch = nn.Sequential(
+            ResidualConvUnit(features),
+            ResidualConvUnit(features),
+            nn.Conv2d(features, num_classes, kernel_size=1, stride=1,
+                      padding=0, bias=True),
+            nn.Sigmoid())
+
+        self.depthBranch = nn.Sequential(
+            ResidualConvUnit(features),
+            ResidualConvUnit(features),
+            nn.Conv2d(features, 1, kernel_size=1, stride=1,
+                      padding=0, bias=True))
 
         self.initialize_weights()
 
@@ -86,6 +89,16 @@ class BaseRefineNet4Cascade(nn.Module):
             for layer in layers:
                 for param in layer.parameters():
                     param.requires_grad = False
+
+        # self.output_conv = nn.Sequential(
+        #     ResidualConvUnit(features), ResidualConvUnit(features),
+        #     nn.Conv2d(
+        #         features,
+        #         num_classes,
+        #         kernel_size=1,
+        #         stride=1,
+        #         padding=0,
+        #         bias=True))
 
     def forward(self, x):
 
@@ -106,8 +119,11 @@ class BaseRefineNet4Cascade(nn.Module):
 
         path_1 = un_pool(path_1, 4)
 
-        out = self.output_conv(path_1)
-        return out
+        seg = self.segBranch(path_1)
+        depth = self.depthBranch(path_1)
+
+        # out = self.output_conv(path_1)
+        return seg, depth
 
     def initialize_weights(self):
         for m in self.modules():
@@ -118,6 +134,10 @@ class BaseRefineNet4Cascade(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+
+    # def named_parameters(self):
+    #     """Returns parameters that requires a gradident to update."""
+    #     return (p for p in super().named_parameters() if p[1].requires_grad)
 
 
 class RefineNet4Cascade(BaseRefineNet4Cascade):

@@ -6,6 +6,23 @@ def un_pool(input, scale):
     return F.interpolate(input, scale_factor=scale, mode='bilinear', align_corners=True)
 
 
+class MyLoss(nn.Module):
+    def __init__(self, w1=0.5, w2=0.5):
+        super().__init__()
+
+        self.w1 = w1
+        self.w2 = w2
+        self.BCELoss = nn.BCELoss(reduce=True, reduction='sum')
+        self.MSELoss = nn.MSELoss()
+
+    def forward(self, seg_out, depth_out, seg_target, depth_target):
+        loss = self.w1 * self.BCELoss(seg_out, seg_target) + self.w2 * self.MSELoss(depth_out, depth_target)
+        if loss > 10000:
+            loss1 = self.BCELoss(seg_out, seg_target)
+            loss2 = self.MSELoss(depth_out, depth_target)
+        return loss
+
+
 class ResidualConvUnit(nn.Module):
     def __init__(self, features):
         super().__init__()
@@ -87,6 +104,42 @@ class ChainedResidualPool(nn.Module):
         x = self.relu(x)
         path = x
 
+        for i in range(0, self.block_count):
+            path = self.__getattr__("block{}".format(i))(path)
+            x = x + path
+
+        return x
+
+
+class ChainedResidualPoolImproved(nn.Module):
+    def __init__(self, feats, block_count=4):
+        super().__init__()
+
+        self.block_count = block_count
+        self.relu = nn.ReLU(inplace=False)
+        for i in range(0, block_count):
+            self.add_module(
+                "block{}".format(i),
+                nn.Sequential(
+                    nn.Conv2d(
+                        feats,
+                        feats,
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        bias=False),
+                    nn.MaxPool2d(kernel_size=5, stride=1, padding=2)))
+
+    def forward(self, x):
+        x = self.relu(x)
+        path = x
+
+        for i in range(0, self.block_count):
+            path = self.__getattr__("block{}".format(i))(path)
+            x = x + path
+
+        return x
+
 
 class BaseRefineNetBlock(nn.Module):
     def __init__(self, features, residual_conv_unit, multi_resolution_fusion,
@@ -128,3 +181,8 @@ class RefineNetBlock(BaseRefineNetBlock):
         super().__init__(features, ResidualConvUnit, MultiResolutionFusion,
                          ChainedResidualPool, *shapes)
 
+
+class RefineNetBlockImprovedPooling(BaseRefineNetBlock):
+    def __init__(self, features, *shapes):
+        super().__init__(features, ResidualConvUnit, MultiResolutionFusion,
+                         ChainedResidualPoolImproved, *shapes)
